@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DXUtils", "DXUtils\DXUtils.vcxproj", "{8207C7E5-5288-40E3-AF87-130047780016}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTK_Desktop_2012", "DirectXTK\DirectXTK_Desktop_2012.vcxproj", "{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bloom", "MV01-MyScene\MV01-MyScene.vcxproj", "{83E87029-66FB-4C48-8DB8-26E88E5CF48E}"
 EndProject
 Global
@@ -17,10 +15,6 @@ Global
 		{8207C7E5-5288-40E3-AF87-130047780016}.Debug|Win32.Build.0 = Debug|Win32
 		{8207C7E5-5288-40E3-AF87-130047780016}.Release|Win32.ActiveCfg = Release|Win32
 		{8207C7E5-5288-40E3-AF87-130047780016}.Release|Win32.Build.0 = Release|Win32
-		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Debug|Win32.ActiveCfg = Debug|Win32
-		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Debug|Win32.Build.0 = Debug|Win32
-		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Release|Win32.ActiveCfg = Release|Win32
-		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Release|Win32.Build.0 = Release|Win32
 		{83E87029-66FB-4C48-8DB8-26E88E5CF48E}.Debug|Win32.ActiveCfg = Debug|Win32
 		{83E87029-66FB-4C48-8DB8-26E88E5CF48E}.Debug|Win32.Build.0 = Debug|Win32
 		{83E87029-66FB-4C48-8DB8-26E88E5CF48E}.Release|Win32.ActiveCfg = Release|Win32

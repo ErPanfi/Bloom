@@ -4,12 +4,12 @@
 
 #include <Windows.h>
 
-#include "illuminationProgram.h"
+#include "BloomProgram.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	IlluminationProgram app(hInstance, nCmdShow);
-	app.setWindowTitle(L"04 - Illuminazione e Shading");
+	BloomProgram app(hInstance, nCmdShow);
+	app.setWindowTitle(L"Tentativo di far mescolare le texture");
 	app.setWindowSize(640, 480);
 
 	return app.run();

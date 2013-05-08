@@ -13,35 +13,50 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Shaders">
+    <Filter Include="Shaders_HLSL">
       <UniqueIdentifier>{9674696d-bed4-4f0e-8cc5-2b878a32686a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Src\illuminationProgram.cpp">
+    <ClCompile Include="Src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Src\main.cpp">
+    <ClCompile Include="Src\BloomProgram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\BaseShader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\RenderToTexture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Src\illuminationProgram.h">
+    <ClInclude Include="Src\BloomProgram.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\BaseShader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\RenderToTexture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\PhongShadingVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders_HLSL</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\PhongShadingPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders_HLSL</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\BrightPassPS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders_HLSL</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\TextureMergePS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders_HLSL</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\TextureTrivialVS.hlsl">
+      <Filter>Shaders_HLSL</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

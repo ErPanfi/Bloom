@@ -52,8 +52,6 @@ float4 CalcLightinig(float3 worldPosition, float3 worldSpaceNormal, float3 viewD
 		color += kSpecular * Specular.rgb * LightColor[i].rgb * fAtten;
 	}
 
-	float currBright = max(color.r, max(color.b, color.g));
-
 	return float4(color, 1.0f);
 }
 
