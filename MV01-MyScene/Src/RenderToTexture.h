@@ -30,6 +30,8 @@ public:
 			mpTextureRenderTargetView -> Release();
 		if(mpTextureSamplerState)
 			mpTextureSamplerState -> Release();
+		if(mpTextureShaderResourceView)
+			mpTextureShaderResourceView -> Release();
 	}
 
 	//attributes getters
@@ -39,16 +41,16 @@ public:
 	
 	ID3D11ShaderResourceView* getTextureShaderResourceView() const { return mpTextureShaderResourceView; }
 
-	HRESULT initializeTargetTexture(ID3D11Device* pDevice, D3D11_TEXTURE2D_DESC* pTextureDesc, D3D11_SAMPLER_DESC* pSamplerDesc)
+	HRESULT initializeTargetTexture(ID3D11Device* pDevice, D3D11_TEXTURE2D_DESC textureDesc, D3D11_SAMPLER_DESC* pSamplerDesc)
 	{
 		//creo la texture
-		HRESULT result = pDevice -> CreateTexture2D(pTextureDesc, nullptr, &mpTextureRenderTarget);
+		HRESULT result = pDevice -> CreateTexture2D(&textureDesc, nullptr, &mpTextureRenderTarget);
 		if(FAILED(result))
 			return result;
 
 		//creo il render target view da associare alla texture - la descrizione matcha quella della texture
 		D3D11_RENDER_TARGET_VIEW_DESC descRTV;
-		descRTV.Format = pTextureDesc -> Format;
+		descRTV.Format = textureDesc.Format;
 		descRTV.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 		descRTV.Texture2D.MipSlice = 0;
 		result = pDevice -> CreateRenderTargetView(mpTextureRenderTarget, &descRTV, &mpTextureRenderTargetView);
@@ -57,9 +59,9 @@ public:
 
 		//descrivo e creo la shader resource view
 		D3D11_SHADER_RESOURCE_VIEW_DESC descSRV;
-		descSRV.Format = pTextureDesc -> Format;
+		descSRV.Format = textureDesc.Format;
 		descSRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		descSRV.Texture2D.MipLevels = pTextureDesc -> MipLevels;
+		descSRV.Texture2D.MipLevels = textureDesc.MipLevels;
 		descSRV.Texture2D.MostDetailedMip = descSRV.Texture2D.MipLevels -1;
 
 		result = pDevice -> CreateShaderResourceView(mpTextureRenderTarget, &descSRV, &mpTextureShaderResourceView);

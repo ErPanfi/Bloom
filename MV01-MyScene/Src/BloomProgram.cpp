@@ -211,10 +211,11 @@ HRESULT BloomProgram::initializeResources()
 	//descrizioni dei tre componenti del depth buffer
 	RECT rc;
     GetClientRect( mHWnd, &rc );
-	UINT width = rc.right - rc.left;
-	UINT height = rc.bottom - rc.top;
+	UINT width = 640; //rc.right - rc.left;
+	UINT height = 480; //rc.bottom - rc.top;
 
 	D3D11_TEXTURE2D_DESC descDepth;
+	ZeroMemory(&descDepth, sizeof(descDepth));
 	descDepth.Width = width;
 	descDepth.Height = height;
 	descDepth.MipLevels = 1;
@@ -270,7 +271,8 @@ HRESULT BloomProgram::initializeResources()
 	textureDesc.MipLevels = 1;
 	textureDesc.ArraySize = 1;
 	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Count = 1;	
+	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	textureDesc.CPUAccessFlags = 0;
@@ -284,25 +286,28 @@ HRESULT BloomProgram::initializeResources()
 
 	PosTexCoords texVertexes[] = 
 	{
-		{ XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT2(-1.0f, -1.0f)},
-		{ XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT2(1.0f, -1.0f)},
-		{ XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
-		{ XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT2(-1.0f, 1.0f)},
+		{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
+
+		{ XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f) },
+		{ XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f) },
+		{ XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f) },
 	};
 
-	result = mcg::createVertexBuffer(mPd3dDevice, texVertexes, 4, D3D11_USAGE_DEFAULT, &mpTextureVertexBuffer);
+	result = mcg::createVertexBuffer(mPd3dDevice, texVertexes, 6, D3D11_USAGE_DEFAULT, &mpTextureVertexBuffer);
     if( FAILED( result ) )
         return result;
 
-	unsigned int texIndexes[] = 
-	{
-		0, 2, 1,
-		2, 0, 3
-	};
+	//unsigned int texIndexes[] = 
+	//{
+	//	0, 3, 1,
+	//	3, 2, 1,
+	//};
 
-	result = mcg::createIndexBuffer(mPd3dDevice, indices, 36, D3D11_USAGE_DEFAULT, &mIndexBuffer);
-    if( FAILED( result ) )
-        return result;
+	//result = mcg::createIndexBuffer(mPd3dDevice, texIndexes, 6, D3D11_USAGE_DEFAULT, &mpTextureIndexBuffer);
+ //   if( FAILED( result ) )
+ //       return result;
 
 
 	//descrizione del sampler state
@@ -334,11 +339,12 @@ HRESULT BloomProgram::initializeResources()
         return result;
 	*/
 	mpPhongShader = new RenderToTexture();
+	//mpPhongShader = new BaseShader();
 	result = mpPhongShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, layout, 2, L"./PhongShadingVS.cso", L"./PhongShadingPS.cso");
 	if(FAILED(result))
 		return result;
 
-	result = mpPhongShader -> initializeTargetTexture(mPd3dDevice, &textureDesc, &sampDesc);
+	result = mpPhongShader -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
 	if(FAILED(result))
 		return result;
 
@@ -349,20 +355,20 @@ HRESULT BloomProgram::initializeResources()
 	if( FAILED( result ) )
         return result;
 
-	result = mpBrightPassShader -> initializeTargetTexture(mPd3dDevice, &textureDesc, &sampDesc);
+	result = mpBrightPassShader -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
 	if( FAILED( result ) )
         return result;
 
-	//texture merge shader
-	mpTextureMergeShader = new RenderToTexture();
+	////texture merge shader
+	//mpTextureMergeShader = new RenderToTexture();
 
-	result = mpTextureMergeShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
-	if( FAILED( result ) )
-        return result;
+	//result = mpTextureMergeShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
+	//if( FAILED( result ) )
+ //       return result;
 
-	result = mpTextureMergeShader -> initializeTargetTexture(mPd3dDevice, &textureDesc, &sampDesc);
-	if( FAILED( result ) )
-        return result;
+	//result = mpTextureMergeShader -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
+	//if( FAILED( result ) )
+ //       return result;
 
 	//////////////////
 	mLightSphere = std::unique_ptr<DirectX::GeometricPrimitive>(GeometricPrimitive::CreateSphere(mPd3dDeviceContext, 1.0f, 10));
@@ -456,6 +462,7 @@ void BloomProgram::preRender()
 
 void BloomProgram::render()
 {
+
 	XMFLOAT4 clearColor(0.0f, 0.0f, 0.0f, 1.0f );	//opaque black
 
 	//primo passo: renderizziamo la scena sulla texture
@@ -495,10 +502,10 @@ void BloomProgram::render()
 	mPd3dDeviceContext->IASetIndexBuffer(mIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 	mPd3dDeviceContext->DrawIndexed(36, 0, 0);
 
-	mPd3dDeviceContext->PSSetConstantBuffers(0, 1, &mPlaneMaterialCBuffer);
-	mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mPlaneVertexBuffer, &stride, &offset);
-	mPd3dDeviceContext->IASetIndexBuffer(mPlaneIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-	mPd3dDeviceContext->DrawIndexed(6, 0, 0);
+	//mPd3dDeviceContext->PSSetConstantBuffers(0, 1, &mPlaneMaterialCBuffer);
+	//mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mPlaneVertexBuffer, &stride, &offset);
+	//mPd3dDeviceContext->IASetIndexBuffer(mPlaneIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	//mPd3dDeviceContext->DrawIndexed(6, 0, 0);
 
 	for(int i = 0; i < mLights.usedLights; ++i)
 	{
@@ -506,44 +513,46 @@ void BloomProgram::render()
 		lightWorld = XMMatrixMultiply(XMMatrixScaling(0.3f, 0.3f, 0.3f), lightWorld);
 		mLightSphere->Draw(lightWorld, mTransforms.view, mTransforms.projection, XMLoadFloat4(&mLights.color[i]));
 	}
-
 	//disegno della texture di base concluso
 
 	//rendering aggiuntivi?
 	if(brightPass)
 	{
+		
 		//secondo passo: applicazione brightpass alla texture di base
-		mpBrightPassShader -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+		mpBrightPassShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
 
-		//Settiamo i constant buffer da utilizzare.
-		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBrightThreshBuffer);
 		//settiamo shader resource per l'utilizzo della texture precedente
 		ID3D11ShaderResourceView* srvPtr = mpPhongShader->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
+		//Settiamo i constant buffer da utilizzare.
+		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBrightThreshBuffer);
 		//disegniamo la texture
-		mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		mPd3dDeviceContext->DrawIndexed(6, 0, 0);
+		stride = sizeof(PosTexCoords);
+		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
+		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		mPd3dDeviceContext->Draw(6, 0);
 		//fine secondo passo
 
-		//terzo passo: texture merging
-		//specifichiamo manualmente il render target, in modo da istruirlo per renderizzare a schermo
-		mpTextureMergeShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
-		//settiamo i due shader resource per l'utilizzo delle texture precedenti
-		srvPtr = mpPhongShader->getTextureShaderResourceView();
-		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
-		srvPtr = mpBrightPassShader->getTextureShaderResourceView();
-		mPd3dDeviceContext->PSSetShaderResources(1, 1, &srvPtr);
-		//disegniamo la texture
-		mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		mPd3dDeviceContext->DrawIndexed(6, 0, 0);
-		//fine terzo passo
+		////terzo passo: texture merging
+		////specifichiamo manualmente il render target, in modo da istruirlo per renderizzare a schermo
+		//mpTextureMergeShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		////settiamo i due shader resource per l'utilizzo delle texture precedenti
+		//srvPtr = mpPhongShader->getTextureShaderResourceView();
+		//mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
+		//srvPtr = mpBrightPassShader->getTextureShaderResourceView();
+		//mPd3dDeviceContext->PSSetShaderResources(1, 1, &srvPtr);
+		////disegniamo la texture
+		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		//mPd3dDeviceContext->DrawIndexed(6, 0, 0);
+		////fine terzo passo
 	}
 
 	/////////////////////////////
 	//finale: rendering della texture sul render target del monitor
 
 	// Settiamo il render target corrente.
-	mPd3dDeviceContext->OMSetRenderTargets(1, &mPRenderTargetView, mPDepthStencilView);
+	//mPd3dDeviceContext->OMSetRenderTargets(1, &mPRenderTargetView, mPDepthStencilView);
 
 	mTextDrawer->beginDraw();
 	if(brightPass)
