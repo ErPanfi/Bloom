@@ -4,9 +4,9 @@
 
 
 //texture scena 
-Texture2D baseTexture : register(t0);
-Texture2D otherTexture : register(t1);
-SamplerState	texSampler : register(s0);
+Texture2D		textures[2];
+
+SamplerState	texSampler;
 
 struct PixelShaderInput
 {
@@ -16,6 +16,14 @@ struct PixelShaderInput
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
-	//return float4(baseTexture.Sample(texSampler, input.texCoord).rgb + 0.25*(otherTexture.Sample(texSampler, input.texCoord).rgb), 1.0);
-	return float4(0.0, 1.0, 0.0, 1.0);
+	float4 baseTexel = textures[0].Sample(texSampler, input.texCoord);
+	float4 otherTexel = textures[1].Sample(texSampler, input.texCoord);
+	
+	if(otherTexel.a != 0 && otherTexel.r && otherTexel.b && otherTexel.g)
+	{
+		float baseFactor = 0.60;
+		return baseTexel + otherTexel * (1 - baseFactor);
+	}
+	else
+		return baseTexel;
 }

@@ -8,7 +8,6 @@
 #include "buffer.h"
 #include "textDrawer.h"
 
-
 #pragma comment(lib, "DXUtils.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -39,11 +38,12 @@ BloomProgram::BloomProgram(const HINSTANCE hInstance, const int nCmdShow)
 	, cThresh(0.5f)
 	, mpBrightPassShader(nullptr)
 	, mpPhongShader(nullptr)
-	, mpTextureMergeShader(nullptr)
-	, mpBlurShader(nullptr)
+	, mpBlurShaderHoriz(nullptr)
+	, mpBlurShaderVert(nullptr)
 	, floatBlurLevel(1.0f)
 	, intBlurLevel(1)
 	, mBlurParamBuffer(nullptr)
+	, mpTextureBlender(nullptr)
 {
 	for(int i = 0; i < MAX_KEY; ++i)
 		keys[i] = false;
@@ -387,26 +387,35 @@ HRESULT BloomProgram::initializeResources()
 	if( FAILED( result ) )
         return result;
 
-	//Blur shader - init object
-	mpBlurShader = new RenderToTexture();
-	result = mpBlurShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BlurPS.cso");
+	//Blur shader - init objects
+	mpBlurShaderHoriz = new RenderToTexture();
+	result = mpBlurShaderHoriz -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BlurHorizPS.cso");
 	if(FAILED(result))
 		return result;
 
-	result = mpPhongShader -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
+	result = mpBlurShaderHoriz -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
 	if(FAILED(result))
 		return result;
 
-	////texture merge shader
-	//mpTextureMergeShader = new RenderToTexture();
+	mpBlurShaderVert = new RenderToTexture();
+	result = mpBlurShaderVert -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BlurVertPS.cso");
+	if(FAILED(result))
+		return result;
 
-	//result = mpTextureMergeShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
-	//if( FAILED( result ) )
- //       return result;
+	result = mpBlurShaderVert -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
+	if(FAILED(result))
+		return result;
 
-	//result = mpTextureMergeShader -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
-	//if( FAILED( result ) )
- //       return result;
+	//texture blender shader
+	mpTextureBlender = new RenderToTexture();
+
+	result = mpTextureBlender -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
+	if( FAILED( result ) )
+        return result;
+
+	result = mpTextureBlender -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
+	if( FAILED( result ) )
+        return result;
 
 	//////////////////
 	mLightSphere = std::unique_ptr<DirectX::GeometricPrimitive>(GeometricPrimitive::CreateSphere(mPd3dDeviceContext, 1.0f, 10));
@@ -421,14 +430,17 @@ HRESULT BloomProgram::initializeResources()
 
 void BloomProgram::updateBlurLevel(bool inc)
 {
-	static const float BLUR_LEVEL_STEP = 0.01f;
+	static const float BLUR_LEVEL_STEP = 0.05f;
 
 	if(inc && floatBlurLevel < 5.0f)
 		floatBlurLevel  += BLUR_LEVEL_STEP;
 	else if(!inc && floatBlurLevel  > 1.0f)
 		floatBlurLevel  -= BLUR_LEVEL_STEP;
 
-	int newBlurLevel = (int) floatBlurLevel ;
+	int newBlurLevel = (int) floatBlurLevel;
+
+	if(floatBlurLevel - newBlurLevel > 0.5f)
+		newBlurLevel++;
 
 	if(newBlurLevel != intBlurLevel)
 	{
@@ -603,9 +615,9 @@ void BloomProgram::render()
 		mPd3dDeviceContext->Draw(6, 0);
 		//fine secondo passo
 
-		//terzo passo: blur
-		//specifichiamo manualmente il render target, in modo da istruirlo per renderizzare a schermo
-		mpBlurShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		//terzo passo: blur 
+		//prima sfocatura orizzontale
+		mpBlurShaderHoriz -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
 		//Diamogli come shader resource la texture ottenuta allo step precedente
 		srvPtr = mpBrightPassShader->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
@@ -617,19 +629,50 @@ void BloomProgram::render()
 		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		mPd3dDeviceContext->Draw(6, 0);
 		//fine terzo passo
+
+		//poi sfocatura verticale
+		mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+		//Diamogli come shader resource la texture ottenuta allo step precedente
+		srvPtr = mpBlurShaderHoriz->getTextureShaderResourceView();
+		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
+		//Settiamo i constant buffer da utilizzare.
+		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBlurParamBuffer);
+		//disegniamo la texture
+		stride = sizeof(PosTexCoords);
+		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
+		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		mPd3dDeviceContext->Draw(6, 0);
+		//fine terzo passo
+
+		//quarto passo: merge
+		//specifichiamo manualmente il render target, in modo da istruirlo per renderizzare a schermo
+		mpTextureBlender -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		//Componiamo l'array di textures e passiamolo al PS
+		ID3D11ShaderResourceView* textureArray[2];
+		textureArray[0] = mpPhongShader->getTextureShaderResourceView();
+		textureArray[1] = mpBlurShaderVert->getTextureShaderResourceView();
+
+		mPd3dDeviceContext->PSSetShaderResources(0, 2, textureArray);
+
+		//disegniamo la texture
+		stride = sizeof(PosTexCoords);
+		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
+		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		mPd3dDeviceContext->Draw(6, 0);
+		//fine terzo passo
+
 	}
 
 	/////////////////////////////
-	//finale: rendering della texture sul render target del monitor
 
 	// Settiamo il render target corrente.
 	//mPd3dDeviceContext->OMSetRenderTargets(1, &mPRenderTargetView, mPDepthStencilView);
 
 	mTextDrawer->beginDraw();
 	if(applyBlur)
-		mTextDrawer->drawText(*mArialFont, L"Blur enabled: level " + std::to_wstring(intBlurLevel));// + L" - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
+		mTextDrawer->drawText(*mArialFont, L"Bloom enabled: level " + std::to_wstring(intBlurLevel));// + L" - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
 	else
-		mTextDrawer->drawText(*mArialFont, L"Bright disabled (level " + std::to_wstring(intBlurLevel) + L")");// - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
+		mTextDrawer->drawText(*mArialFont, L"Bloom disabled (level " + std::to_wstring(intBlurLevel) + L")");// - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
 	mTextDrawer->endDraw();
 	////////////////////////////
 
@@ -717,9 +760,6 @@ void BloomProgram::cleanResouces()
 
 	if(mpBrightPassShader)
 		delete mpBrightPassShader;
-
-	if(mpTextureMergeShader)
-		delete mpTextureMergeShader;
 
 	if(mpTextureVertexBuffer)
 		mpTextureVertexBuffer -> Release();

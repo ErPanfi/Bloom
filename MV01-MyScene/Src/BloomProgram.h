@@ -90,13 +90,6 @@ private:
 	float cPos;
 	float shiftPos;
 
-	float cThresh;
-	struct BrightThresh
-	{
-		float	threshold;
-		float	padding[3];
-	};
-
 	ID3D11Buffer*	mBrightThreshBuffer;	//apply bright pass
 	//ID3D11Buffer*	mNoBrightThreshBuffer;	//no brigth pass
 
@@ -113,13 +106,21 @@ private:
 	ID3D11SamplerState*			mTexSamplerState;
 	*/
 
-	RenderToTexture*	mpPhongShader;
-	RenderToTexture*	mpBrightPassShader;
-	RenderToTexture*	mpTextureMergeShader;
 	ID3D11Buffer*		mpTextureVertexBuffer;
 	ID3D11Buffer*		mpTextureIndexBuffer;
 
-	RenderToTexture*	mpBlurShader;
+	RenderToTexture*	mpPhongShader;
+
+	RenderToTexture*	mpBrightPassShader;
+	float cThresh;
+	struct BrightThresh
+	{
+		float	threshold;
+		float	padding[3];
+	};
+
+	RenderToTexture*	mpBlurShaderHoriz;
+	RenderToTexture*	mpBlurShaderVert;
 	struct BlurParamsStruct
 	{
 		int		blurLevel;
@@ -130,4 +131,6 @@ private:
 	int					intBlurLevel;
 	ID3D11Buffer*		mBlurParamBuffer;
 	void updateBlurLevel(bool inc);
+
+	RenderToTexture*	mpTextureBlender;
 };
