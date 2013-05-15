@@ -58,5 +58,8 @@
     <FxCompile Include="Src\Shaders\TextureTrivialVS.hlsl">
       <Filter>Shaders_HLSL</Filter>
     </FxCompile>
+    <FxCompile Include="BlurPS.hlsl">
+      <Filter>Shaders_HLSL</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

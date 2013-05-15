@@ -55,6 +55,8 @@ private:
 		CPOS_DEC,
 		BTHRESH_INC,
 		BTHRESH_DEC,
+		BLUR_LEVEL_INC,
+		BLUR_LEVEL_DEC,
 		MAX_KEY
 	};
 
@@ -79,7 +81,7 @@ private:
 	ID3D11DepthStencilState* mDepthStencilState;
 
 	//clock_t	clockTick;
-	bool brightPass;
+	bool applyBlur;
 	bool pauseLightsRotation;
 	bool keys[MAX_KEY];
 
@@ -116,4 +118,16 @@ private:
 	RenderToTexture*	mpTextureMergeShader;
 	ID3D11Buffer*		mpTextureVertexBuffer;
 	ID3D11Buffer*		mpTextureIndexBuffer;
+
+	RenderToTexture*	mpBlurShader;
+	struct BlurParamsStruct
+	{
+		int		blurLevel;
+		float	padding[3];
+	};
+
+	float				floatBlurLevel;
+	int					intBlurLevel;
+	ID3D11Buffer*		mBlurParamBuffer;
+	void updateBlurLevel(bool inc);
 };

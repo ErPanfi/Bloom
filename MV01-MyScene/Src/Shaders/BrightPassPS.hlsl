@@ -1,7 +1,3 @@
-//--------------------------------------------------------------------------------------
-// Copyright (c) Luca Giona 2013. Do not distribute. (Master Game Development - University of Verona)
-//--------------------------------------------------------------------------------------
-
 Texture2D		inputTexture : register(t0);
 SamplerState	texSampler : register(s0);
 
