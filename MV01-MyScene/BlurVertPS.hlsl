@@ -21,14 +21,21 @@ struct PixelShaderInput
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
+
+	float screenHeight = 480.0f;
+	float texelSize = 1.0f / screenHeight;
+
+
 	float3 rgb = float3(0.0, 0.0, 0.0);
 	//float blurMaxWeight = 0.16f;
 
 	[unroll(MAX_LEVEL)] for(int i = 0; i < level; i++)
 	{
 		//vertical blur
-		rgb += inputTexture.Sample(texSampler, float2(input.texCoord.x, input.texCoord.y - (i * blurSize))).rgb * blurWeights[i]; //(blurMaxWeight - i * 0.01f);
-		rgb += inputTexture.Sample(texSampler, float2(input.texCoord.x, input.texCoord.y + (i * blurSize))).rgb * blurWeights[i]; //(blurMaxWeight - i * 0.01f);
+		//rgb += inputTexture.Sample(texSampler, float2(input.texCoord.x, input.texCoord.y - (i * blurVertSize))).rgb * (blurMaxWeight - i * 0.01f);
+		//rgb += inputTexture.Sample(texSampler, float2(input.texCoord.x, input.texCoord.y + (i * blurVertSize))).rgb * (blurMaxWeight - i * 0.01f);
+		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(0.0f, (-i * texelSize))).rgb * (blurMaxWeight - i * 0.01f);
+		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(0.0f, (+i * texelSize))).rgb * (blurMaxWeight - i * 0.01f);
 	}
 
 	return float4(rgb, 1.0f);

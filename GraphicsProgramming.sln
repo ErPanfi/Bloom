@@ -14,6 +14,9 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTK_Desktop_2012", "DirectXTK\DirectXTK_Desktop_2012.vcxproj", "{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Bloom2", "Bloom2\Bloom2.vcxproj", "{2C4CC24B-F99D-4F99-A581-57C65FAEE8D8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8207C7E5-5288-40E3-AF87-130047780016} = {8207C7E5-5288-40E3-AF87-130047780016}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
