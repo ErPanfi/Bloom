@@ -121,15 +121,20 @@ private:
 
 	RenderToTexture*	mpBlurShaderHoriz;
 	RenderToTexture*	mpBlurShaderVert;
+
+	static const int BLUR_MAX_LEVEL = 5;
 	struct BlurParamsStruct
 	{
 		int		blurLevel;
-		float	padding[3];
+		float	blurSize;
+		float	blurWeights[BLUR_MAX_LEVEL];
+		float	padding[4 - ((BLUR_MAX_LEVEL + 2 ) % 4)];
 	};
 
 	float				floatBlurLevel;
 	int					intBlurLevel;
-	ID3D11Buffer*		mBlurParamBuffer;
+	ID3D11Buffer*		mpBlurHorizParamBuffer;
+	ID3D11Buffer*		mpBlurVertParamBuffer;
 	void updateBlurLevel(bool inc);
 
 	RenderToTexture*	mpTextureBlender;

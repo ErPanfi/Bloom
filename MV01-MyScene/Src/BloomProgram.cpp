@@ -42,7 +42,8 @@ BloomProgram::BloomProgram(const HINSTANCE hInstance, const int nCmdShow)
 	, mpBlurShaderVert(nullptr)
 	, floatBlurLevel(1.0f)
 	, intBlurLevel(1)
-	, mBlurParamBuffer(nullptr)
+	, mpBlurHorizParamBuffer(nullptr)
+	, mpBlurVertParamBuffer(nullptr)
 	, mpTextureBlender(nullptr)
 {
 	for(int i = 0; i < MAX_KEY; ++i)
@@ -157,30 +158,6 @@ HRESULT BloomProgram::initializeResources()
     if( FAILED( result ) )
         return result;
 
-	//blur shader - compose constant buffer for blurring parameters
-	BlurParamsStruct	blurParamStruct;
-	blurParamStruct.blurLevel = intBlurLevel;
-
-	/*
-	blurParamStruct.blurHorizSize = 1.0f/400.0f;
-	blurParamStruct.blurVertSize =  1.0f/400.0f;
-	blurParamStruct.blurHorizWeights[0] = 0.16f;
-	blurParamStruct.blurHorizWeights[1] = 0.15f;
-	blurParamStruct.blurHorizWeights[2] = 0.12f;
-	blurParamStruct.blurHorizWeights[3] = 0.09f;
-	blurParamStruct.blurHorizWeights[4] = 0.05f;
-	blurParamStruct.blurVertWeights[0] = 0.16f;
-	blurParamStruct.blurVertWeights[1] = 0.15f;
-	blurParamStruct.blurVertWeights[2] = 0.12f;
-	blurParamStruct.blurVertWeights[3] = 0.09f;
-	blurParamStruct.blurVertWeights[4] = 0.05f;
-	*/
-
-	
-	result = mcg::createCostantBuffer(mPd3dDevice, &blurParamStruct, D3D11_USAGE_DEFAULT, &mBlurParamBuffer);
-	if(FAILED(result))
-		return result;
-
 	// Creazione di un constant buffer con le luci.
 	// Numero di luci nella scena.
 	mLights.usedLights = 5;
@@ -239,8 +216,8 @@ HRESULT BloomProgram::initializeResources()
 	//descrizioni dei tre componenti del depth buffer
 	RECT rc;
     GetClientRect( mHWnd, &rc );
-	UINT width = 640; //rc.right - rc.left;
-	UINT height = 480; //rc.bottom - rc.top;
+	UINT width = rc.right - rc.left;
+	UINT height = rc.bottom - rc.top;
 
 	D3D11_TEXTURE2D_DESC descDepth;
 	ZeroMemory(&descDepth, sizeof(descDepth));
@@ -388,6 +365,23 @@ HRESULT BloomProgram::initializeResources()
         return result;
 
 	//Blur shader - init objects
+	BlurParamsStruct blurParams;
+	//blurParams.blurLevel = 5;
+	blurParams.blurSize = 1.0f / (float) width;
+	blurParams.blurWeights[0] = 0.16f;
+	blurParams.blurWeights[1] = 0.15f;
+	blurParams.blurWeights[2] = 0.12f;
+	blurParams.blurWeights[3] = 0.09f;
+	blurParams.blurWeights[4] = 0.06f;
+
+	result = mcg::createCostantBuffer(mPd3dDevice, &blurParams, D3D11_USAGE_DEFAULT, &mpBlurHorizParamBuffer);
+	if(FAILED(result))
+		return result;
+
+	result = mcg::createCostantBuffer(mPd3dDevice, &blurParams, D3D11_USAGE_DEFAULT, &mpBlurVertParamBuffer);
+	if(FAILED(result))
+		return result;
+
 	mpBlurShaderHoriz = new RenderToTexture();
 	result = mpBlurShaderHoriz -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BlurHorizPS.cso");
 	if(FAILED(result))
@@ -432,7 +426,7 @@ void BloomProgram::updateBlurLevel(bool inc)
 {
 	static const float BLUR_LEVEL_STEP = 0.05f;
 
-	if(inc && floatBlurLevel < 15.0f)
+	if(inc && floatBlurLevel < BLUR_MAX_LEVEL)
 		floatBlurLevel  += BLUR_LEVEL_STEP;
 	else if(!inc && floatBlurLevel  > 1.0f)
 		floatBlurLevel  -= BLUR_LEVEL_STEP;
@@ -448,7 +442,8 @@ void BloomProgram::updateBlurLevel(bool inc)
 		BlurParamsStruct blurParamStruct;
 		blurParamStruct.blurLevel = intBlurLevel;
 
-		mPd3dDeviceContext -> UpdateSubresource(mBlurParamBuffer, 0, nullptr, &blurParamStruct, 0, 0);
+		mPd3dDeviceContext -> UpdateSubresource(mpBlurHorizParamBuffer, 0, nullptr, &blurParamStruct, 0, 0);
+		mPd3dDeviceContext -> UpdateSubresource(mpBlurVertParamBuffer, 0, nullptr, &blurParamStruct, 0, 0);
 	}
 }
 
@@ -622,7 +617,7 @@ void BloomProgram::render()
 		srvPtr = mpBrightPassShader->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
 		//Settiamo i constant buffer da utilizzare.
-		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBlurParamBuffer);
+		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mpBlurHorizParamBuffer);
 		//disegniamo la texture
 		stride = sizeof(PosTexCoords);
 		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
@@ -636,7 +631,7 @@ void BloomProgram::render()
 		srvPtr = mpBlurShaderHoriz->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
 		//Settiamo i constant buffer da utilizzare.
-		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBlurParamBuffer);
+		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mpBlurVertParamBuffer);
 		//disegniamo la texture
 		stride = sizeof(PosTexCoords);
 		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);

@@ -10,7 +10,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 {
 	BloomProgram app(hInstance, nCmdShow);
 	app.setWindowTitle(L"Tentativo di far mescolare le texture");
-	app.setWindowSize(640, 480);
+	app.setWindowSize(1024, 768);
 
 	return app.run();
 }
