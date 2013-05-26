@@ -8,6 +8,8 @@
 #include "buffer.h"
 #include "textDrawer.h"
 
+//#include <math.h>
+
 #pragma comment(lib, "DXUtils.lib")
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -45,9 +47,46 @@ BloomProgram::BloomProgram(const HINSTANCE hInstance, const int nCmdShow)
 	, mpBlurHorizParamBuffer(nullptr)
 	, mpBlurVertParamBuffer(nullptr)
 	, mpTextureBlender(nullptr)
+	, blurPipeLevel(0)
+	, mpDownscaledTextureVertexBuffer(nullptr)
 {
 	for(int i = 0; i < MAX_KEY; ++i)
 		keys[i] = false;
+}
+
+float inline BloomProgram::GaussianDistribution( const float x, const float y, const float rho )
+{
+    float g = 1.0f / sqrtf( 2.0f * XM_PI * rho * rho );
+    g *= expf( -( x * x + y * y ) / ( 2 * rho * rho ) );
+
+    return g;
+}
+
+void BloomProgram::ComputeBlurWeights( int nWeights, float* ret, float fDeviation/*, float fMultiplier*/)
+{
+	float* start = ret;
+    // Fill the center texel weight
+    *ret = 1.0f * GaussianDistribution( 0, 0, fDeviation );
+	float	norm = *ret;
+
+	// Fill the side texel weights: last weight will be compu
+    for(float i = 1.0f; i < nWeights; i++, ret++ )
+	{
+        *ret = /*fMultiplier * */ GaussianDistribution( i, 0, fDeviation );
+		norm += 2 * (*ret);
+	}
+
+	//normalize everything so that sum is 1; last weight will be recomputed by difference
+	ret = start;
+	*ret /= norm;
+	float sum = *ret;
+    for(int i = 1; i < nWeights; i++, ret++ )
+	{
+		*ret /= norm;
+		sum += 2 * (*ret);
+	}
+
+	*(--ret) = (1.0f - sum) / 2.0f;
 }
 
 HRESULT BloomProgram::initializeResources()
@@ -304,6 +343,21 @@ HRESULT BloomProgram::initializeResources()
     if( FAILED( result ) )
         return result;
 
+	PosTexCoords downscaledTexVertexes[] = 
+	{
+		{ XMFLOAT3(-0.25f, -0.25f, 0.0f), XMFLOAT2(0.0f, 0.25f) },
+		{ XMFLOAT3(-0.25f, 0.25f, 0.0f), XMFLOAT2(0.0f, 0.0f) },
+		{ XMFLOAT3(0.25f, 0.25f, 0.0f), XMFLOAT2(0.25f, 0.0f) },
+
+		{ XMFLOAT3(0.25f, -0.25f, 0.0f), XMFLOAT2(0.25f, 0.25f) },
+		{ XMFLOAT3(-0.25f, -0.25f, 0.0f), XMFLOAT2(0.0f, 0.25f) },
+		{ XMFLOAT3(0.25f, 0.25f, 0.0f), XMFLOAT2(0.25f, 0.0f) },
+	};
+
+	result = mcg::createVertexBuffer(mPd3dDevice, downscaledTexVertexes, 6, D3D11_USAGE_DEFAULT, &mpDownscaledTextureVertexBuffer);
+    if( FAILED( result ) )
+        return result;
+
 	//unsigned int texIndexes[] = 
 	//{
 	//	0, 3, 1,
@@ -353,7 +407,22 @@ HRESULT BloomProgram::initializeResources()
 	if(FAILED(result))
 		return result;
 
-	//bright pass shader
+	//texture blender and upscaler shader
+	mpTextureBlender = new RenderToTexture();
+
+	result = mpTextureBlender -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
+	if( FAILED( result ) )
+        return result;
+
+	result = mpTextureBlender -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
+	if( FAILED( result ) )
+        return result;
+
+	//bright pass and downscaler shader
+
+	textureDesc.Height /= 4;
+	textureDesc.Width /= 4;
+
 	mpBrightPassShader = new RenderToTexture();
 
 	result = mpBrightPassShader -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BrightPassPS.cso");
@@ -365,20 +434,19 @@ HRESULT BloomProgram::initializeResources()
         return result;
 
 	//Blur shader - init objects
-	BlurParamsStruct blurParams;
-	//blurParams.blurLevel = 5;
-	blurParams.blurSize = 1.0f / (float) width;
-	blurParams.blurWeights[0] = 0.16f;
-	blurParams.blurWeights[1] = 0.15f;
-	blurParams.blurWeights[2] = 0.12f;
-	blurParams.blurWeights[3] = 0.09f;
-	blurParams.blurWeights[4] = 0.06f;
+	ZeroMemory(&blurParamStruct, sizeof(blurParamStruct));
+	blurParamStruct.blurLevel = 1;
+	blurParamStruct.blurSize = 1.0f / (float) width;
+	float* vettPtr = &blurParamStruct.blurWeights[0];
+	ComputeBlurWeights(BLUR_MAX_LEVEL, vettPtr, 4.0f);
 
-	result = mcg::createCostantBuffer(mPd3dDevice, &blurParams, D3D11_USAGE_DEFAULT, &mpBlurHorizParamBuffer);
+	result = mcg::createCostantBuffer(mPd3dDevice, &blurParamStruct, D3D11_USAGE_DEFAULT, &mpBlurHorizParamBuffer);
 	if(FAILED(result))
 		return result;
 
-	result = mcg::createCostantBuffer(mPd3dDevice, &blurParams, D3D11_USAGE_DEFAULT, &mpBlurVertParamBuffer);
+	blurParamStruct.blurSize = 1.0f / (float) height;
+
+	result = mcg::createCostantBuffer(mPd3dDevice, &blurParamStruct, D3D11_USAGE_DEFAULT, &mpBlurVertParamBuffer);
 	if(FAILED(result))
 		return result;
 
@@ -391,6 +459,7 @@ HRESULT BloomProgram::initializeResources()
 	if(FAILED(result))
 		return result;
 
+	//vertical blur
 	mpBlurShaderVert = new RenderToTexture();
 	result = mpBlurShaderVert -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./BlurVertPS.cso");
 	if(FAILED(result))
@@ -399,17 +468,6 @@ HRESULT BloomProgram::initializeResources()
 	result = mpBlurShaderVert -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
 	if(FAILED(result))
 		return result;
-
-	//texture blender shader
-	mpTextureBlender = new RenderToTexture();
-
-	result = mpTextureBlender -> initializeShadersAndDS(mPd3dDevice, &descDepth, &descDS, &descDSV, texInputLayoutDesc, 2, L"./TextureTrivialVS.cso", L"./TextureMergePS.cso");
-	if( FAILED( result ) )
-        return result;
-
-	result = mpTextureBlender -> initializeTargetTexture(mPd3dDevice, textureDesc, &sampDesc);
-	if( FAILED( result ) )
-        return result;
 
 	//////////////////
 	mLightSphere = std::unique_ptr<DirectX::GeometricPrimitive>(GeometricPrimitive::CreateSphere(mPd3dDeviceContext, 1.0f, 10));
@@ -429,7 +487,7 @@ void BloomProgram::updateBlurLevel(bool inc)
 	if(inc && floatBlurLevel < BLUR_MAX_LEVEL)
 		floatBlurLevel  += BLUR_LEVEL_STEP;
 	else if(!inc && floatBlurLevel  > 1.0f)
-		floatBlurLevel  -= BLUR_LEVEL_STEP;
+		floatBlurLevel  -= BLUR_LEVEL_STEP * 2;
 
 	int newBlurLevel = (int) floatBlurLevel;
 
@@ -438,11 +496,27 @@ void BloomProgram::updateBlurLevel(bool inc)
 
 	if(newBlurLevel != intBlurLevel)
 	{
+		RECT rc;
+		GetClientRect( mHWnd, &rc );
+		UINT width = rc.right - rc.left;
+		UINT height = rc.bottom - rc.top;
+		
 		intBlurLevel = newBlurLevel;
-		BlurParamsStruct blurParamStruct;
 		blurParamStruct.blurLevel = intBlurLevel;
 
+		//std::wstring outString = L"[";
+		//for(int i = 0; i < BLUR_MAX_LEVEL; i++)
+		//{
+		//	outString += std::to_wstring(blurParamStruct.blurWeights[i]) + L",\n";
+		//}
+
+		//outString += L"]";
+		//MessageBox(0, outString.c_str(), L"Aray", 0);
+
+		blurParamStruct.blurSize = 1.0f / (float) width;
 		mPd3dDeviceContext -> UpdateSubresource(mpBlurHorizParamBuffer, 0, nullptr, &blurParamStruct, 0, 0);
+
+		blurParamStruct.blurSize = 1.0f / (float) height;
 		mPd3dDeviceContext -> UpdateSubresource(mpBlurVertParamBuffer, 0, nullptr, &blurParamStruct, 0, 0);
 	}
 }
@@ -560,10 +634,11 @@ void BloomProgram::render()
 	mPd3dDeviceContext->VSSetShader(mPhongVS, nullptr, 0);
 	mPd3dDeviceContext->PSSetShader(mPhongPS, nullptr, 0);
 	*/
-	if(applyBlur)
+	//if(applyBlur)
+	if(blurPipeLevel > 0)
 		mpPhongShader -> prepareContextForRendering(mPd3dDeviceContext, clearColor);	
 	else
-		mpPhongShader -> prepareContextForRendering(mPd3dDeviceContext,mPRenderTargetView, clearColor);
+		mpPhongShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
 
 	//Settiamo i constant buffer da utilizzare.
 	mPd3dDeviceContext->VSSetConstantBuffers(0, 1, &mTranfCBuffer);
@@ -592,11 +667,20 @@ void BloomProgram::render()
 	//disegno della texture di base concluso
 
 	//rendering aggiuntivi?
-	if(applyBlur)
+	//if(applyBlur)
+	if(blurPipeLevel > 0)
 	{
+		stride = sizeof(PosTexCoords);
 		
 		//secondo passo: applicazione brightpass alla texture di base
-		mpBrightPassShader -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+		if(blurPipeLevel == 1)
+		{
+			mpBrightPassShader -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		}
+		else
+		{
+			mpBrightPassShader -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+		}
 
 		//settiamo shader resource per l'utilizzo della texture precedente
 		ID3D11ShaderResourceView* srvPtr = mpPhongShader->getTextureShaderResourceView();
@@ -604,31 +688,53 @@ void BloomProgram::render()
 		//Settiamo i constant buffer da utilizzare.
 		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mBrightThreshBuffer);
 		//disegniamo la texture
-		stride = sizeof(PosTexCoords);
 		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
 		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		mPd3dDeviceContext->Draw(6, 0);
 		//fine secondo passo
+	}
 
+
+
+	if(blurPipeLevel > 1)
+	{
+		stride = sizeof(PosTexCoords);
+		
 		//terzo passo: blur 
+		if(blurPipeLevel == 2)
+		{
+			mpBlurShaderHoriz -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+			//mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
+		}
+		else
+		{
+			mpBlurShaderHoriz -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+			//mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpDownscaledTextureVertexBuffer, &stride, &offset);
+		}
+
 		//prima sfocatura orizzontale
-		mpBlurShaderHoriz -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
 		//Diamogli come shader resource la texture ottenuta allo step precedente
-		srvPtr = mpBrightPassShader->getTextureShaderResourceView();
+		ID3D11ShaderResourceView* srvPtr = mpBrightPassShader->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
 		//Settiamo i constant buffer da utilizzare.
 		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mpBlurHorizParamBuffer);
 		//disegniamo la texture
-		stride = sizeof(PosTexCoords);
 		mPd3dDeviceContext->IASetVertexBuffers(0, 1, &mpTextureVertexBuffer, &stride, &offset);
 		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		mPd3dDeviceContext->Draw(6, 0);
 		//fine terzo passo
+	}
 
-		//poi sfocatura verticale
-		mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+	if(blurPipeLevel > 2)
+	{		
+		//poi sfocatura verticale		
+		if(blurPipeLevel == 3)
+			mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		else
+			mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
+
 		//Diamogli come shader resource la texture ottenuta allo step precedente
-		srvPtr = mpBlurShaderHoriz->getTextureShaderResourceView();
+		ID3D11ShaderResourceView* srvPtr = mpBlurShaderHoriz->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
 		//Settiamo i constant buffer da utilizzare.
 		mPd3dDeviceContext->PSSetConstantBuffers(0,1,&mpBlurVertParamBuffer);
@@ -638,10 +744,14 @@ void BloomProgram::render()
 		//mPd3dDeviceContext->IASetIndexBuffer(mpTextureIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		mPd3dDeviceContext->Draw(6, 0);
 		//fine terzo passo
+	}
 
+	if(blurPipeLevel > 3)
+	{		
 		//quarto passo: merge
 		//specifichiamo manualmente il render target, in modo da istruirlo per renderizzare a schermo
 		mpTextureBlender -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+
 		//Componiamo l'array di textures e passiamolo al PS
 		ID3D11ShaderResourceView* textureArray[2];
 		textureArray[0] = mpPhongShader->getTextureShaderResourceView();
@@ -664,10 +774,13 @@ void BloomProgram::render()
 	//mPd3dDeviceContext->OMSetRenderTargets(1, &mPRenderTargetView, mPDepthStencilView);
 
 	mTextDrawer->beginDraw();
-	if(applyBlur)
-		mTextDrawer->drawText(*mArialFont, L"Bloom enabled: level " + std::to_wstring(intBlurLevel));// + L" - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
-	else
-		mTextDrawer->drawText(*mArialFont, L"Bloom disabled (level " + std::to_wstring(intBlurLevel) + L")");// - ( " + std::to_wstring(1000.0 / tickSecs) + L" FPS)");
+	//if(applyBlur)
+	//	mTextDrawer->drawText(*mArialFont, L"Bloom enabled: level " + std::to_wstring(blurParamStruct.blurLevel));
+	//else
+	//	mTextDrawer->drawText(*mArialFont, L"Bloom disabled (level " + std::to_wstring(blurParamStruct.blurLevel) + L")");
+
+	mTextDrawer->drawText(*mArialFont, L"Bloom pipe stage: " + std::to_wstring(blurPipeLevel) + L", level " + std::to_wstring(blurParamStruct.blurLevel));
+
 	mTextDrawer->endDraw();
 	////////////////////////////
 
@@ -679,7 +792,8 @@ void BloomProgram::keyPressed(WPARAM key, LPARAM param)
 {
 	switch(key)
 	{
-		case VK_SPACE:	applyBlur = !applyBlur; break;
+		//case VK_SPACE:	applyBlur = !applyBlur; break;
+		case VK_SPACE:	blurPipeLevel = (blurPipeLevel + 1) % 5; break;
 		case 0x50:		pauseLightsRotation = !pauseLightsRotation; break; // P
 
 		case 0x41: keys[ROTATE_CAMERA_LEFT]		= true; break; // A
@@ -759,7 +873,7 @@ void BloomProgram::cleanResouces()
 	if(mpTextureVertexBuffer)
 		mpTextureVertexBuffer -> Release();
 
-	if(mpTextureIndexBuffer)
-		mpTextureIndexBuffer -> Release();
+	//if(mpTextureIndexBuffer)
+	//	mpTextureIndexBuffer -> Release();
 
 }

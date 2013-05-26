@@ -12,10 +12,24 @@ struct PixelShaderInput
     float2 texCoord : TEXCOORD0;
 };
 
+
+//will do 4x4 downscaling and brightpass
 float4 main(PixelShaderInput input) : SV_TARGET
 {
-    float3 baseColor = inputTexture.Sample(texSampler, input.texCoord).rgb;
+	//first sample the 4x4 pixel square
+	float3 baseColor = float3(0.0f, 0.0f, 0.0f);
+	float2 sampleTexel = 4 * input.texCoord;
+	[unroll(16)]for(int i = 0; i < 16; i++)
+	{
+		int xOffset = i % 4;
+		int yOffset = i / 4;
+		baseColor += inputTexture.Sample(texSampler, sampleTexel + float2(xOffset, yOffset)).rgb;
+	}
 
+	//then average the obtained value
+	baseColor /= 16.0f;
+
+	//output value if it pass the bright test
 	if(threshold <= max(baseColor.r, max(baseColor.g, baseColor.b)))
 		return float4(baseColor, 1.0);
 	else

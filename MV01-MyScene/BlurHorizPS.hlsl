@@ -1,4 +1,4 @@
-static const int MAX_LEVEL = 5;
+static const int MAX_LEVEL = 8;
 
 Texture2D		inputTexture : register(t0);
 SamplerState	texSampler : register(s0);
@@ -7,7 +7,7 @@ cbuffer BlurParameters : register(cb0)
 {
 	int		level;
 	float	blurSize;
-	float	blurWeights[MAX_LEVEL];
+	//float	blurWeights[MAX_LEVEL];
 }
 
 struct PixelShaderInput
@@ -17,11 +17,13 @@ struct PixelShaderInput
 };
 
 //static const float blurHorizSize = 0.005f;
-//static const float blurHorizWeights[] = {0.16f, 0.15f, 0.12f, 0.09f, 0.05f};
+static const float blurHorizWeights[] = {0.16f, 0.15f, 0.12f, 0.09f, 0.06f};
+
 
 float4 main(PixelShaderInput input) : SV_TARGET
 {
 
+	/*
 	//float screenWidth = 640.0f;
 	//float texelSize = 1.0f / screenWidth;
 
@@ -63,19 +65,19 @@ float4 main(PixelShaderInput input) : SV_TARGET
 
 	//return color;
 
+	*/
 
-
-	float screenWidth = 640.0f;
-	float texelSize = 1.0f / screenWidth;
+	float screenWidth = 1024.0f;
+	float texelSize = 4.0f / screenWidth;
 
 
 	float3 rgb = float3(0.0, 0.0, 0.0);
 	//float blurMaxWeight = 0.16f; 
 
-	[unroll(MAX_LEVEL)] for(int i = 0; i < level; i++)
+	[unroll(5)] for(int i = 0; i < 5  && i < level; i++)
 	{
-		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(-i * texelSize, 0.0f)).rgb * (blurMaxWeight - i * 0.01f);
-		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(+i * texelSize, 0.0f)).rgb * (blurMaxWeight - i * 0.01f);
+		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(-i * texelSize, 0.0f)).rgb * blurHorizWeights[i];
+		rgb += inputTexture.Sample(texSampler, input.texCoord + float2(+i * texelSize, 0.0f)).rgb * blurHorizWeights[i];
 	}
 
 	return float4(rgb, 1.0f);

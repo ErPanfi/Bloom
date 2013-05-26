@@ -82,6 +82,7 @@ private:
 
 	//clock_t	clockTick;
 	bool applyBlur;
+	int blurPipeLevel;
 	bool pauseLightsRotation;
 	bool keys[MAX_KEY];
 
@@ -107,7 +108,8 @@ private:
 	*/
 
 	ID3D11Buffer*		mpTextureVertexBuffer;
-	ID3D11Buffer*		mpTextureIndexBuffer;
+	ID3D11Buffer*		mpDownscaledTextureVertexBuffer;
+	//ID3D11Buffer*		mpTextureIndexBuffer;
 
 	RenderToTexture*	mpPhongShader;
 
@@ -122,20 +124,26 @@ private:
 	RenderToTexture*	mpBlurShaderHoriz;
 	RenderToTexture*	mpBlurShaderVert;
 
-	static const int BLUR_MAX_LEVEL = 5;
+	static const int BLUR_MAX_LEVEL = 8;
 	struct BlurParamsStruct
 	{
 		int		blurLevel;
 		float	blurSize;
 		float	blurWeights[BLUR_MAX_LEVEL];
-		float	padding[4 - ((BLUR_MAX_LEVEL + 2 ) % 4)];
+		float	padding[4 - ((BLUR_MAX_LEVEL + 2 ) % 4)];	//may lead to an unnecessary extra 4 float padding
 	};
 
 	float				floatBlurLevel;
 	int					intBlurLevel;
+	BlurParamsStruct	blurParamStruct;
 	ID3D11Buffer*		mpBlurHorizParamBuffer;
 	ID3D11Buffer*		mpBlurVertParamBuffer;
 	void updateBlurLevel(bool inc);
 
 	RenderToTexture*	mpTextureBlender;
+
+	float inline GaussianDistribution( float x, float y, float rho );
+
+	void ComputeBlurWeights( int nWeights, float ret[], float fDeviation/*, float fMultiplier*/);
+
 };
