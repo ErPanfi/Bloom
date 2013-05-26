@@ -124,12 +124,15 @@ private:
 	struct BlurParamsStruct
 	{
 		int		blurLevel;
-		float	padding[3];
+		float	blurSize;
+		float	padding[2];
 	};
 
 	float				floatBlurLevel;
 	int					intBlurLevel;
-	ID3D11Buffer*		mBlurParamBuffer;
+	ID3D11Buffer*		mHorizBlurParamBuffer;
+	ID3D11Buffer*		mVertBlurParamBuffer;
+	BlurParamsStruct	blurParamStruct;
 	void updateBlurLevel(bool inc);
 
 	RenderToTexture*	mpTextureBlender;

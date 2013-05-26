@@ -3,7 +3,8 @@ SamplerState	texSampler : register(s0);
 
 cbuffer BlurParameters : register(cb0)
 {
-	int level;
+	int		level;
+	float	blurVertSize;
 }
 
 struct PixelShaderInput
@@ -12,7 +13,7 @@ struct PixelShaderInput
     float2 texCoord : TEXCOORD0;
 };
 
-static const float blurVertSize = 0.01f;
+//static const float blurVertSize = 0.01f;
 static const float blurVertWeights[] = {0.16f, 0.15f, 0.12f, 0.09f, 0.05f};
 
 float4 main(PixelShaderInput input) : SV_TARGET
