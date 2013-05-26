@@ -28,4 +28,8 @@ _ReSharper*/
 *.vssscc
 $tf*/
 *.opensdf
+<<<<<<< HEAD
 *.sdf
+=======
+*.sdf
+>>>>>>> 43964f4e247a5ef5ffab6840cf8e83bc27228d25
