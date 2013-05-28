@@ -665,7 +665,7 @@ void BloomProgram::render()
 		//fine terzo passo
 
 		//poi sfocatura verticale
-		mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, mPRenderTargetView, clearColor);
+		mpBlurShaderVert -> prepareContextForRendering(mPd3dDeviceContext, clearColor);
 		//Diamogli come shader resource la texture ottenuta allo step precedente
 		srvPtr = mpBlurShaderHoriz->getTextureShaderResourceView();
 		mPd3dDeviceContext->PSSetShaderResources(0, 1, &srvPtr);
