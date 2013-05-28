@@ -80,6 +80,8 @@ private:
 	ID3D11Buffer* mLightsCBuffer;
 	ID3D11DepthStencilState* mDepthStencilState;
 
+	unsigned int mNumIndices;
+
 	//clock_t	clockTick;
 	bool applyBlur;
 	bool pauseLightsRotation;
