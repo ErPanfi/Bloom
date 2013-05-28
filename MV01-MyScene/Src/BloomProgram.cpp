@@ -458,7 +458,7 @@ void BloomProgram::updateBlurLevel(bool inc)
 {
 	static const float BLUR_LEVEL_STEP = 0.05f;
 
-	if(inc && floatBlurLevel < 5.0f)
+	if(inc && floatBlurLevel < 16.0f)
 		floatBlurLevel  += BLUR_LEVEL_STEP;
 	else if(!inc && floatBlurLevel  > 1.0f)
 		floatBlurLevel  -= BLUR_LEVEL_STEP;
